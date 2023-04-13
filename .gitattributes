@@ -1,1 +1,2 @@
 data/disneyRideTimes.csv filter=lfs diff=lfs merge=lfs -text
+disneyenv/disneyenv/envs/data/disneyRideTimes.csv filter=lfs diff=lfs merge=lfs -text
