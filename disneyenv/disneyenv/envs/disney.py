@@ -1,11 +1,12 @@
 import numpy as np
 import pandas as pd
 
+
 import gym
 from datetime import datetime, timedelta
 from gym.spaces import Discrete, Box
 
-
+from scipy.spatial.distance import squareform, pdist
 import geopy.distance
 
 
@@ -40,22 +41,18 @@ class DisneyEnv(gym.Env):
         # Dataframe for extracting data
         self.waittime = pd.read_csv(
             "disneyenv/disneyenv/envs/data/disneyRideTimes.csv")
-        self.waittime["dateTime"] = self.waittime["dateTime"].apply(
-            lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
-        self.waittime["day"] = [str(
-            i.year) + "-" + str(i.month) + "-" + str(i.day) for i in self.waittime["dateTime"]]
+        self.waittime["dateTime"] = pd.to_datetime(self.waittime["dateTime"])
+        self.waittime["date"] = self.waittime["dateTime"].dt.date
 
         self.weather = pd.read_csv(
             "disneyenv/disneyenv/envs/data/hourlyWeather.csv")
-        self.weather["dateTime"] = self.weather["dateTime"].apply(
-            lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
-        self.weather["day"] = [str(
-            i.year) + "-" + str(i.month) + "-" + str(i.day) for i in self.weather["dateTime"]]
+        self.weather["dateTime"] = pd.to_datetime(self.weather["dateTime"])
+        self.weather["date"] = self.weather["dateTime"].dt.date
 
         self.ridesinfo = pd.read_csv(
             "disneyenv/disneyenv/envs/data/rideDuration.csv")
-        self.rides = self.ridesinfo.id.to_numpy()
-        self.avalible_days = set(self.waittime.day.unique())
+        self.rides = self.ridesinfo["id"].unique()
+        self.avalible_dates = self.waittime["date"].unique()
         self.observation = None
 
         # Action space
@@ -65,33 +62,27 @@ class DisneyEnv(gym.Env):
         # adjacency matrix
         landLocation = pd.read_csv(
             "disneyenv/disneyenv/envs/data/landLocation.csv")
-        self.adjacency_matrix = np.zeros([17, 17])
         walking_speed = 0.0804672  # km/min
 
-        for i in range(len(landLocation)):
-            start = [landLocation.loc[i]["longitude"],
-                     landLocation.loc[i]["latitude"]]
-            for j in range(len(landLocation)):
-                destination = [landLocation.loc[j]["longitude"],
-                               landLocation.loc[j]["latitude"]]
-                self.adjacency_matrix[i][j] = geopy.distance.geodesic(
-                    start, destination).km/walking_speed
+        self.adjacency_matrix = squareform(pdist(landLocation[[
+                                           "longitude", "latitude"]], lambda u, v: geopy.distance.geodesic(u, v).km/walking_speed))
 
-        # The current day we are in
-        self.current_day = None
+        # The current date we are in
+        self.current_date = None
         self.current_time = None
         self.current_location = None
         self.waittime_today = None
         self.weather_today = None
         self.past_actions = None
+        self.current_reward = None
 
         # Mandatory field for inheriting gym.Env
         # self.observation_space = spaces.Discrete(231)
         self.observation_space = Box(
-            low=-1000, high=1000, shape=(231,), dtype=np.float32)
+            low=-10, high=1000, shape=(231,), dtype=np.float64)
         # self.action_space = Discrete(
         #     len(self.__all_actions) - 1, start=-1)
-        self.action_space = Discrete(len(self.__all_actions))
+        self.action_space = Discrete(len(self.__all_actions) - 1)
 
         # reward
         self.reward_dict = {
@@ -111,6 +102,8 @@ class DisneyEnv(gym.Env):
             else:
                 t = self.waittime_today[self.waittime_today.rideID == ride_id].iloc()[
                     event]["waitMins"]
+                if np.isnan(t):
+                    t = 999
             waittime = np.append(waittime, t)
 
         # distance
@@ -138,30 +131,40 @@ class DisneyEnv(gym.Env):
         Weather: temperature and precipitation [2]
         Past Actions: A vector of 0 and 1 showing rides haven't been done [106]
         '''
-        # reset past actions
+        # reset past actions: 0 visits to any of the rides
         self.past_actions = np.zeros(len(self.rides))
 
-        # initialize the day and location
-        self.current_day = np.random.choice(list(self.avalible_days))
-        self.current_time = datetime.strptime(
-            self.current_day + " 08:00:00", "%Y-%m-%d %H:%M:%S")
-        self.avalible_days.remove(self.current_day)
+        while True:
+            # initialize the date and location
+            self.current_date = np.random.choice(self.avalible_dates)
+
+            # locate the date
+            self.waittime_today = self.waittime[self.waittime.date == self.current_date].copy(
+            )
+
+            if (self.waittime_today is None) or (len(self.waittime_today) == 0):
+                continue
+
+            break
+
+        # start from 8:00 am
+        self.current_time = datetime(
+            self.current_date.year, self.current_date.month, self.current_date.day, 8, 0)
+        # sample without replacement
+        # self.avalible_dates.remove(self.current_date)
+
         # The location of disney gallery, which locates at the entrance of the disneyland
         self.current_location = 61
 
-        # locate the day
-        self.waittime_today = self.waittime[self.waittime.day == self.current_day].copy(
+        self.weather_today = self.weather[self.weather.date == self.current_date].copy(
         )
 
-        if (self.waittime_today is None) or (len(self.waittime_today) == 0):
-            self.reset()
-
-        self.weather_today = self.weather[self.weather.day == self.current_day].copy(
-        )
+        self.current_reward = 0
 
         self.observation = self.__get_observation()
 
-        print("\n A new day! Today is "+self.current_day)
+        print("A new day! Today is " +
+              self.current_date.strftime("%Y-%m-%d"))
         return self.observation
 
     def step(self, action: int):  # action is the index of the ride. Not the ride ID
@@ -191,16 +194,16 @@ class DisneyEnv(gym.Env):
             wait_duration = 10
             ride_duration = 0
         elif not valid_action:  # choose a ride but it doesn't open
-            travel_duration = self.adjacency_matrix[self.ridesinfo.iloc(
-            )[action].landID][self.ridesinfo.iloc()[self.current_location].landID]
-            wait_duration = 0
+            travel_duration = self.adjacency_matrix[self.ridesinfo.iloc[action]
+                                                    .landID][self.ridesinfo.iloc[self.current_location].landID]
+            wait_duration = 10
             ride_duration = 0
         else:
             assert action != -1
             self.past_actions[action] += 1
             # Next time stamp
-            travel_duration = self.adjacency_matrix[self.ridesinfo.iloc(
-            )[action].landID][self.ridesinfo.iloc()[self.current_location].landID]
+            travel_duration = self.adjacency_matrix[self.ridesinfo.iloc[action]
+                                                    .landID][self.ridesinfo.iloc[self.current_location].landID]
             # self.observation is a attribute since we need to use it here
             wait_duration = self.observation[action]
             ride_duration = self.ridesinfo.duration_min[action]
@@ -214,6 +217,9 @@ class DisneyEnv(gym.Env):
         # update location
         if action != -1:
             self.current_location = action
+
+        if terminated:
+            print("The day is over! The reward is " + str(self.current_reward))
 
         return self.observation, reward, terminated, info
     '''
