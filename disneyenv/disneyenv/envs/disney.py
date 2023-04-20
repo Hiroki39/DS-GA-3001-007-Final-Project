@@ -16,9 +16,9 @@ def locate_event(time: datetime, time_array, event_type: str):
     if len(time_array) == 0:  # There is no waittime for a ride at the day
         return 999
 
-    delta_time_array = np.array([(time-i).total_seconds() for i in time_array])
+    delta_time_array = np.array([(time-t).total_seconds() for t in time_array])
     # only use negative index values
-    delta_time_array[delta_time_array > 0] = 999
+    delta_time_array[delta_time_array < 0] = 999
 
     if event_type == "waittime":
         threshold_time = 1800
@@ -57,7 +57,7 @@ class DisneyEnv(gym.Env):
 
         # Action space
         # -1 indicates wait for 10 min
-        self.__all_actions = np.append(np.arange(len(self.rides)), -1)
+        self.__all_actions = np.arange(len(self.rides) + 1)
 
         # adjacency matrix
         landLocation = pd.read_csv(
@@ -82,7 +82,7 @@ class DisneyEnv(gym.Env):
             low=-10, high=1000, shape=(231,), dtype=np.float64)
         # self.action_space = Discrete(
         #     len(self.__all_actions) - 1, start=-1)
-        self.action_space = Discrete(len(self.__all_actions) - 1)
+        self.action_space = Discrete(len(self.__all_actions))
 
         # reward
         self.reward_dict = {
@@ -172,7 +172,7 @@ class DisneyEnv(gym.Env):
         valid_action = True
         # print(self.observation[action])
         # REWARD
-        if action == -1:
+        if action == len(self.rides):
             reward = 0
         elif (self.observation[action] == 999) or (np.isnan(self.observation[action])):
             reward = -50
@@ -189,7 +189,7 @@ class DisneyEnv(gym.Env):
 
         # STATE
         # update pass actions
-        if action == -1:  # wait
+        if action == len(self.rides):  # wait
             travel_duration = 0
             wait_duration = 10
             ride_duration = 0
@@ -199,7 +199,6 @@ class DisneyEnv(gym.Env):
             wait_duration = 10
             ride_duration = 0
         else:
-            assert action != -1
             self.past_actions[action] += 1
             # Next time stamp
             travel_duration = self.adjacency_matrix[self.ridesinfo.iloc[action]
@@ -215,7 +214,7 @@ class DisneyEnv(gym.Env):
         terminated = self.current_time.hour > 22
 
         # update location
-        if action != -1:
+        if action != len(self.rides):
             self.current_location = action
 
         if terminated:
