@@ -82,7 +82,7 @@ class DisneyEnv(gym.Env):
             low=-10, high=1000, shape=(231,), dtype=np.float64)
         # self.action_space = Discrete(
         #     len(self.__all_actions) - 1, start=-1)
-        self.action_space = Discrete(len(self.__all_actions))
+        self.action_space = Discrete(len(self.__all_actions) - 1)
 
         # reward
         self.reward_dict = {
