@@ -126,8 +126,6 @@ class DisneyEnv(gym.Env):
     def retrieve_closest_prior_info(self, input_index, target_df, event_type: str):
 
         # get iloc of the target indexes
-        if event_type == "waitTime":
-            print(input_index.dtypes, target_df.index.dtypes)
         target_ilocs = target_df.index.get_indexer(input_index, method="ffill")
         # index of valid ilocs
         valid_targets = np.where(target_ilocs != -1)[0]
@@ -154,6 +152,7 @@ class DisneyEnv(gym.Env):
 
         elif event_type == "weather":
 
+            # on average, the feelsLikeF is 68
             if len(valid_targets) == 0:
                 return 0, 68
 
@@ -246,8 +245,7 @@ class DisneyEnv(gym.Env):
                                                     .landID][self.ridesinfo.iloc[self.current_location].landID]
             # self.observation is a attribute since we need to use it here
             # scale back to normal time scale
-            wait_duration = self.observation["waitTime"][action] * \
-                self.waitTimeMax
+            wait_duration = self.observation["waitTime"][action]
             ride_duration = self.ridesinfo.duration_min[action]
 
             # apply small penalty for walking
