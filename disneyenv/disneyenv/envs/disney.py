@@ -7,9 +7,6 @@ import gym
 from datetime import datetime, timedelta
 from gym.spaces import Discrete, Box, Dict, MultiBinary
 
-from scipy.spatial.distance import squareform, pdist
-import geopy.distance
-
 
 warnings.filterwarnings('ignore')
 
@@ -43,13 +40,9 @@ class DisneyEnv(gym.Env):
         # len(self.rides) indicates wait for 10 min
         self.__all_actions = np.arange(len(self.rides) + 1)
 
-        # adjacency matrix
-        landLocation = pd.read_csv(
-            "disneyenv/disneyenv/envs/data/landLocation.csv")
-        walking_speed = 0.0804672  # km/min
-
-        self.adjacency_matrix = squareform(pdist(landLocation[[
-                                           "longitude", "latitude"]], lambda u, v: geopy.distance.geodesic(u, v).km/walking_speed))
+        # walking time obtained via google map api
+        self.adjacency_matrix = np.load(
+            "disneyenv/disneyenv/envs/data/walking_time.npy")
 
         # The current date we are in
         self.current_date = None
@@ -61,13 +54,14 @@ class DisneyEnv(gym.Env):
         self.past_actions = None
         self.current_reward = None
 
-        # Mandatory field for inheriting gym.Env
         # waitTime and feelsLikeF are normalized
+        # progress indicates how much of today's time has passed
         self.observation_space = Dict(
             {
                 "waitTime": Box(low=0, high=1, shape=(len(self.rides),), dtype=np.float64),
                 "operationStatus": MultiBinary(len(self.rides)),
                 "currentLand": Discrete(len(self.adjacency_matrix)),
+                "progress": Box(low=0, high=1, shape=(1,), dtype=np.float64),
                 "rainStatus": Discrete(6),
                 "feelsLikeF": Box(low=0, high=1, shape=(1,), dtype=np.float64),
                 "pastActions": MultiBinary(len(self.rides))
@@ -112,10 +106,14 @@ class DisneyEnv(gym.Env):
         feelsLikeF = (feelsLikeF - self.tempRange[0]) / \
             (self.tempRange[1] - self.tempRange[0])
 
+        # compute progress -- (current - 8am) / (10pm - 8am)
+        progress = ((self.current_time - datetime.combine(self.current_time.date(), datetime.min.time())).total_seconds() - 28800) / 50400
+
         self.observation = OrderedDict([
             ("waitTime", waitTime),
             ("operationStatus", operationStatus),
             ("currentLand", self.current_land),
+            ("progress", [progress]),
             ("rainStatus", rainStatus),
             ("feelsLikeF", [feelsLikeF]),
             ("pastActions", self.past_actions)
@@ -221,10 +219,10 @@ class DisneyEnv(gym.Env):
         elif not self.observation["operationStatus"][action]:
             # visit a ride that is not operating
             reward = 0
-            travel_duration = self.adjacency_matrix[self.ridesinfo.iloc[action]
-                                                    .landID][self.current_land]
 
-            # if the ride is in the same land, assume 1min travel time
+            travel_duration = self.adjacency_matrix[self.current_land][self.ridesinfo.iloc[action].landID]
+
+            # if the ride is in the same land, assume 1 min travel time
             if travel_duration == 0:
                 travel_duration = 1
 
@@ -232,7 +230,7 @@ class DisneyEnv(gym.Env):
             ride_duration = 0
 
             # apply small penalty for walking
-            reward -= travel_duration * 0.1
+            reward -= travel_duration * 0.2
 
         else:
             popularity = self.ridesinfo.iloc[action]["popularity"]
@@ -247,20 +245,19 @@ class DisneyEnv(gym.Env):
             # update past actions
             self.past_actions[action] |= 1
 
-            travel_duration = self.adjacency_matrix[self.ridesinfo.iloc[action]
-                                                    .landID][self.current_land]
+            travel_duration = self.adjacency_matrix[self.current_land][self.ridesinfo.iloc[action].landID]
 
             # if the ride is in the same land, assume 1min travel time
             if travel_duration == 0:
                 travel_duration = 1
 
-            # self.observation is a attribute since we need to use it here
+            # de-normalize the waitTime
             wait_duration = self.observation["waitTime"][action] * \
                 self.waitTimeMax
             ride_duration = self.ridesinfo.duration_min[action]
 
             # apply small penalty for walking
-            reward -= travel_duration * 0.1
+            reward -= travel_duration * 0.2
 
         # compute next timestamp
         self.current_time += timedelta(minutes=(travel_duration +
@@ -268,12 +265,14 @@ class DisneyEnv(gym.Env):
         self.observation = self.__get_observation()
 
         info = {}
-        terminated = self.current_time.hour > 22
+        # the visit is over if the time is after 10:00 pm
+        terminated = self.current_time > datetime(
+            self.current_date.year, self.current_date.month, self.current_date.day, 22, 0)
 
         # update location
         if action != len(self.rides):
             self.current_location = action
-            self.current_land = self.ridesinfo.iloc[self.current_location].landID
+            self.current_land = self.ridesinfo.iloc[action].landID
 
         # update reward
         self.current_reward += reward
