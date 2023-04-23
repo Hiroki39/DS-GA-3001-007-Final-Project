@@ -16,6 +16,8 @@ class DisneyEnv(gym.Env):
         # Dataframe for extracting data
         self.waitTime = pd.read_csv(
             "disneyenv/disneyenv/envs/data/disneyRideTimes.csv")
+        self.waitTimeMax = self.waitTime.waitMins.max()
+        self.waitTime.waitMins = self.waitTime.waitMins/self.waitTimeMax
         self.waitTime["dateTime"] = pd.to_datetime(self.waitTime["dateTime"])
         self.waitTime["date"] = self.waitTime["dateTime"].dt.date
         self.waitTime = self.waitTime.set_index(["rideID", "dateTime"])
@@ -25,6 +27,8 @@ class DisneyEnv(gym.Env):
         self.weather["dateTime"] = pd.to_datetime(self.weather["dateTime"])
         self.weather["date"] = self.weather["dateTime"].dt.date
         self.weather = self.weather.set_index("dateTime")
+        self.tempRange =  [self.weather.feelsLikeF.min(),self.weather.feelsLikeF.max()]
+        self.weather.feelsLikeF = (self.weather.feelsLikeF-self.tempRange[0])/(self.tempRange[1]-self.tempRange[0])
 
         self.ridesinfo = pd.read_csv(
             "disneyenv/disneyenv/envs/data/rideDuration.csv")
@@ -58,11 +62,11 @@ class DisneyEnv(gym.Env):
         # self.observation_space = spaces.Discrete(231)
         self.observation_space = Dict(
             {
-                "waitTime": Box(low=0, high=1000, shape=(len(self.rides),), dtype=np.float64),
+                "waitTime": Box(low=0, high=1, shape=(len(self.rides),), dtype=np.float64),
                 "operationStatus": MultiBinary(len(self.rides)),
                 "currentLand": Discrete(len(self.adjacency_matrix)),
                 "rainStatus": Discrete(6),
-                "feelsLikeF": Box(low=41, high=115, shape=(1,), dtype=np.float64),
+                "feelsLikeF": Box(low=0, high=1, shape=(1,), dtype=np.float64),
                 "pastActions": MultiBinary(len(self.rides))
             }
         )
@@ -110,6 +114,7 @@ class DisneyEnv(gym.Env):
         ])
 
         return self.observation
+    
 
     def retrieve_closest_prior_info(self, input_index, target_df, event_type: str):
 
@@ -233,7 +238,7 @@ class DisneyEnv(gym.Env):
             travel_duration = self.adjacency_matrix[self.ridesinfo.iloc[action]
                                                     .landID][self.ridesinfo.iloc[self.current_location].landID]
             # self.observation is a attribute since we need to use it here
-            wait_duration = self.observation["waitTime"][action]
+            wait_duration = self.observation["waitTime"][action] * self.waitTimeMax # scale back to normal time scale
             ride_duration = self.ridesinfo.duration_min[action]
 
             # apply small penalty for walking
@@ -259,23 +264,11 @@ class DisneyEnv(gym.Env):
             print("The day is over! The reward is " + str(self.current_reward))
 
         return self.observation, reward, terminated, info
-    '''
-    def get_action_space(self):
-        # method that returns possible actions.
-        if self.observation is None:
-            self.action_space.n = 1
-            return np.array([])
-        else:
-            possible_action = []
-            for index,content in enumerate(self.__all_actions):
-                if content == -1:
-                    possible_action += [content]
-                elif (self.observation[index] != 999) and (~np.isnan(self.observation[index])):
-                    possible_action += [content]
 
-            self.action_space.n = len(possible_action)
-            return np.array(possible_action)
-    '''
+    def denormalize_temperature(self, temperature):
+        return (temperature*(self.tempRange[1]-self.tempRange[0])) + self.tempRange[0]
+    def denormalize_wait_time(self,wait_time):
+        return wait_time * self.waitTimeMax
 
     def close():
         pass
