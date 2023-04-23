@@ -88,10 +88,10 @@ class DisneyEnv(gym.Env):
     def __get_observation(self):
         # for each attraction, return its wait time
         input_waitTime_index = pd.MultiIndex.from_arrays(
-            [self.rides, np.repeat(self.current_time, len(self.rides))])
+            [np.array(self.rides), np.repeat(self.current_time, len(self.rides))])
 
-        input_waitTime_index = input_waitTime_index.set_levels(
-            input_waitTime_index[0].astype(np.int64), level=0)
+        # input_waitTime_index = input_waitTime_index.set_levels(
+        #     input_waitTime_index.get_level_values(0).astype(np.int64), level=0)
 
         waitTime, operationStatus = self.retrieve_closest_prior_info(
             input_waitTime_index, self.waitTime, "waitTime")
@@ -114,7 +114,8 @@ class DisneyEnv(gym.Env):
     def retrieve_closest_prior_info(self, input_index, target_df, event_type: str):
 
         # get iloc of the target indexes
-        print(event_type, input_index)
+        if event_type == "waitTime":
+            print(input_index.dtypes, target_df.index.dtypes)
         target_ilocs = target_df.index.get_indexer(input_index, method="ffill")
         # index of valid ilocs
         valid_targets = np.where(target_ilocs != -1)[0]
@@ -122,7 +123,7 @@ class DisneyEnv(gym.Env):
         if event_type == "waitTime":
             # make sure that the rideID is the same
             valid_targets = valid_targets[
-                target_df.index[valid_targets].get_level_values(
+                target_df.index[target_ilocs[valid_targets]].get_level_values(
                     0) == input_index[valid_targets].get_level_values(0)]
 
             waitTime = np.repeat(np.nan, len(input_index))
