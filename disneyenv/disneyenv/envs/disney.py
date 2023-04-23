@@ -21,7 +21,6 @@ class DisneyEnv(gym.Env):
         self.waitTime = pd.read_csv(
             "disneyenv/disneyenv/envs/data/disneyRideTimes.csv")
         self.waitTimeMax = self.waitTime.waitMins.max()
-        self.waitTime.waitMins = self.waitTime.waitMins / self.waitTimeMax
         self.waitTime["dateTime"] = pd.to_datetime(self.waitTime["dateTime"])
         self.waitTime["date"] = self.waitTime["dateTime"].dt.date
         self.waitTime = self.waitTime.set_index(["rideID", "dateTime"])
@@ -33,8 +32,6 @@ class DisneyEnv(gym.Env):
         self.weather = self.weather.set_index("dateTime")
         self.tempRange = [
             self.weather.feelsLikeF.min(), self.weather.feelsLikeF.max()]
-        self.weather.feelsLikeF = (
-            self.weather.feelsLikeF - self.tempRange[0]) / (self.tempRange[1] - self.tempRange[0])
 
         self.ridesinfo = pd.read_csv(
             "disneyenv/disneyenv/envs/data/rideDuration.csv")
@@ -65,7 +62,7 @@ class DisneyEnv(gym.Env):
         self.current_reward = None
 
         # Mandatory field for inheriting gym.Env
-        # self.observation_space = spaces.Discrete(231)
+        # waitTime and feelsLikeF are normalized
         self.observation_space = Dict(
             {
                 "waitTime": Box(low=0, high=1, shape=(len(self.rides),), dtype=np.float64),
@@ -109,6 +106,11 @@ class DisneyEnv(gym.Env):
         # weather
         rainStatus, feelsLikeF = self.retrieve_closest_prior_info(
             [self.current_time], self.weather_today, "weather")
+
+        # normalize waitTime and feelsLikeF
+        waitTime = waitTime / self.waitTimeMax
+        feelsLikeF = (feelsLikeF - self.tempRange[0]) / \
+            (self.tempRange[1] - self.tempRange[0])
 
         self.observation = OrderedDict([
             ("waitTime", waitTime),
@@ -271,12 +273,6 @@ class DisneyEnv(gym.Env):
             print("The day is over! The reward is " + str(self.current_reward))
 
         return self.observation, reward, terminated, info
-
-    def denormalize_temperature(self, temperature):
-        return (temperature*(self.tempRange[1]-self.tempRange[0])) + self.tempRange[0]
-
-    def denormalize_wait_time(self, wait_time):
-        return wait_time * self.waitTimeMax
 
     def close():
         pass
