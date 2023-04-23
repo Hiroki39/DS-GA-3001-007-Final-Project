@@ -217,12 +217,18 @@ class DisneyEnv(gym.Env):
             travel_duration = 0
             wait_duration = 10
             ride_duration = 0
+
         elif not self.observation["operationStatus"][action]:
             # visit a ride that is not operating
             reward = 0
             travel_duration = self.adjacency_matrix[self.ridesinfo.iloc[action]
-                                                    .landID][self.ridesinfo.iloc[self.current_location].landID]
-            wait_duration = 10
+                                                    .landID][self.current_land]
+
+            # if the ride is in the same land, assume 1min travel time
+            if travel_duration == 0:
+                travel_duration = 1
+
+            wait_duration = 0
             ride_duration = 0
 
             # apply small penalty for walking
@@ -242,10 +248,15 @@ class DisneyEnv(gym.Env):
             self.past_actions[action] |= 1
 
             travel_duration = self.adjacency_matrix[self.ridesinfo.iloc[action]
-                                                    .landID][self.ridesinfo.iloc[self.current_location].landID]
+                                                    .landID][self.current_land]
+
+            # if the ride is in the same land, assume 1min travel time
+            if travel_duration == 0:
+                travel_duration = 1
+
             # self.observation is a attribute since we need to use it here
-            # scale back to normal time scale
-            wait_duration = self.observation["waitTime"][action]
+            wait_duration = self.observation["waitTime"][action] * \
+                self.waitTimeMax
             ride_duration = self.ridesinfo.duration_min[action]
 
             # apply small penalty for walking
