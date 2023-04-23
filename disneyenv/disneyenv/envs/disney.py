@@ -2,12 +2,16 @@ import numpy as np
 import pandas as pd
 from collections import OrderedDict
 
+import warnings
 import gym
 from datetime import datetime, timedelta
 from gym.spaces import Discrete, Box, Dict, MultiBinary
 
 from scipy.spatial.distance import squareform, pdist
 import geopy.distance
+
+
+warnings.filterwarnings('ignore')
 
 
 class DisneyEnv(gym.Env):
@@ -17,7 +21,7 @@ class DisneyEnv(gym.Env):
         self.waitTime = pd.read_csv(
             "disneyenv/disneyenv/envs/data/disneyRideTimes.csv")
         self.waitTimeMax = self.waitTime.waitMins.max()
-        self.waitTime.waitMins = self.waitTime.waitMins/self.waitTimeMax
+        self.waitTime.waitMins = self.waitTime.waitMins / self.waitTimeMax
         self.waitTime["dateTime"] = pd.to_datetime(self.waitTime["dateTime"])
         self.waitTime["date"] = self.waitTime["dateTime"].dt.date
         self.waitTime = self.waitTime.set_index(["rideID", "dateTime"])
@@ -27,8 +31,10 @@ class DisneyEnv(gym.Env):
         self.weather["dateTime"] = pd.to_datetime(self.weather["dateTime"])
         self.weather["date"] = self.weather["dateTime"].dt.date
         self.weather = self.weather.set_index("dateTime")
-        self.tempRange =  [self.weather.feelsLikeF.min(),self.weather.feelsLikeF.max()]
-        self.weather.feelsLikeF = (self.weather.feelsLikeF-self.tempRange[0])/(self.tempRange[1]-self.tempRange[0])
+        self.tempRange = [
+            self.weather.feelsLikeF.min(), self.weather.feelsLikeF.max()]
+        self.weather.feelsLikeF = (
+            self.weather.feelsLikeF - self.tempRange[0]) / (self.tempRange[1] - self.tempRange[0])
 
         self.ridesinfo = pd.read_csv(
             "disneyenv/disneyenv/envs/data/rideDuration.csv")
@@ -114,7 +120,6 @@ class DisneyEnv(gym.Env):
         ])
 
         return self.observation
-    
 
     def retrieve_closest_prior_info(self, input_index, target_df, event_type: str):
 
@@ -238,7 +243,9 @@ class DisneyEnv(gym.Env):
             travel_duration = self.adjacency_matrix[self.ridesinfo.iloc[action]
                                                     .landID][self.ridesinfo.iloc[self.current_location].landID]
             # self.observation is a attribute since we need to use it here
-            wait_duration = self.observation["waitTime"][action] * self.waitTimeMax # scale back to normal time scale
+            # scale back to normal time scale
+            wait_duration = self.observation["waitTime"][action] * \
+                self.waitTimeMax
             ride_duration = self.ridesinfo.duration_min[action]
 
             # apply small penalty for walking
@@ -267,7 +274,8 @@ class DisneyEnv(gym.Env):
 
     def denormalize_temperature(self, temperature):
         return (temperature*(self.tempRange[1]-self.tempRange[0])) + self.tempRange[0]
-    def denormalize_wait_time(self,wait_time):
+
+    def denormalize_wait_time(self, wait_time):
         return wait_time * self.waitTimeMax
 
     def close():
