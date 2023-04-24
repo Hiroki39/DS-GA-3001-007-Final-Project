@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --nodes 1
 #SBATCH --ntasks-per-node 1
-#SBATCH --cpus-per-task 1
-#SBATCH --mem 10G
+#SBATCH --cpus-per-task 32
+#SBATCH --mem 200G
 #SBATCH --time 2-00:00:00
 #SBATCH --job-name DisneyRL
 #SBATCH --output "/gpfs/data/oermannlab/users/hz2212/DS-GA 3001-007/slurm_logs/DisneyRL-%J.log" 
