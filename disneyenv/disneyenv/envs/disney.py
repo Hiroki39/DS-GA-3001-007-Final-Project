@@ -159,7 +159,7 @@ class DisneyEnv(gym.Env):
 
     def reset(self):
         '''
-        OBSERVATIONS: 
+        OBSERVATIONS:
         Waittime: Waittime for 110 rides [106]
         Distance: Distance to 18 lands [18]
         Weather: temperature and precipitation [2]
