@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 
 
 class DisneyEnv(gym.Env):
-    def __init__(self):
+    def __init__(self, train, eval_days=15):
 
         # Dataframe for extracting data
         self.waitTime = pd.read_csv(
@@ -33,7 +33,16 @@ class DisneyEnv(gym.Env):
         self.ridesinfo = pd.read_csv(
             "disneyenv/disneyenv/envs/data/rideDuration.csv")
         self.rides = self.ridesinfo["id"].unique()
-        self.avalible_dates = self.waitTime["date"].unique()
+        self.train = train
+
+        if train:
+            self.avalible_dates = np.sort(
+                self.waitTime["date"].unique())[:-eval_days]
+        else:
+            # for evaluation, we only use the last eval_days days
+            self.avalible_dates = np.sort(
+                self.waitTime["date"].unique())[-eval_days:]
+            self.eval_idx = 0
 
         # Action space
         # len(self.rides) indicates wait for 10 min
@@ -159,19 +168,28 @@ class DisneyEnv(gym.Env):
         # reset past actions: 0 visits to any of the rides
         self.past_actions = np.zeros(len(self.rides), dtype=bool)
 
-        # choose a date with available data, sample with replacement
-        while True:
-            # initialize the date and location
-            self.current_date = np.random.choice(self.avalible_dates)
+        if self.train:
+            # choose a date with available data, sample with replacement
+            while True:
+                # initialize the date and location
+                self.current_date = np.random.choice(self.avalible_dates)
+
+                # locate the date
+                self.waitTime_today = self.waitTime[self.waitTime.date == self.current_date].copy(
+                )
+
+                if (self.waitTime_today is None) or (len(self.waitTime_today) == 0):
+                    continue
+
+                break
+        else:
+            self.current_date = self.avalible_dates[self.eval_idx]
 
             # locate the date
             self.waitTime_today = self.waitTime[self.waitTime.date == self.current_date].copy(
             )
 
-            if (self.waitTime_today is None) or (len(self.waitTime_today) == 0):
-                continue
-
-            break
+            self.eval_idx = (self.eval_idx + 1) % len(self.avalible_dates)
 
         # filter the weather data
         self.weather_today = self.weather[self.weather.date == self.current_date].copy(
@@ -191,7 +209,7 @@ class DisneyEnv(gym.Env):
         # initialize the observation
         self.observation = self.__get_observation()
 
-        print(f"A new day! Today is {self.current_date.strftime('%Y-%m-%d')}")
+        # print(f"A new day! Today is {self.current_date.strftime('%Y-%m-%d')}")
 
         return self.observation
 
@@ -249,7 +267,7 @@ class DisneyEnv(gym.Env):
         # get next observation
         self.observation = self.__get_observation()
 
-        info = {}
+        info = {"current_date": self.current_date}
 
         # the visit is over if the time is after 10:00 pm
         terminated = self.current_time > datetime(
@@ -258,8 +276,8 @@ class DisneyEnv(gym.Env):
         # update reward
         self.current_reward += reward
 
-        if terminated:
-            print(f"The day is over! The reward is {self.current_reward}")
+        # if terminated:
+        #     print(f"The day is over! The reward is {self.current_reward}")
 
         return self.observation, reward, terminated, info
 
