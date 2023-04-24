@@ -53,7 +53,7 @@ id,parkID,name,land,height,duration_min,popularity,landID
 353437,330339,Splash Mountain,Critter Country,40.0,11.0,HD,6
 353449,330339,The Many Adventures of Winnie the Pooh,Critter Country,,4.0,,6
 353315,330339,Disneyland Railroad,"Main Street, U.S.A.",,22.0,,7
-353329,330339,"Fire Engine, presented by National Car Rental","Main Street, U.S.A.",,,,7
+353329,330339,"Fire Engine, presented by National Car Rental","Main Street, U.S.A.",,7.0,,7
 353351,330339,"Horse-Drawn Streetcars, presented by National Car Rental","Main Street, U.S.A.",,7.0,,7
 353353,330339,"Horseless Carriage, presented by National Car Rental","Main Street, U.S.A.",,3.0,,7
 353371,330339,Main Street Cinema,"Main Street, U.S.A.",,15.0,,7
@@ -90,7 +90,7 @@ id,parkID,name,land,height,duration_min,popularity,landID
 353431,336894,Soarin' Around the World,Grizzly Peak,40.0,4.5,,11
 353347,330339,Haunted Mansion,New Orleans Square,,9.0,MAA,12
 353405,330339,Pirates of the Caribbean ,New Orleans Square,,15.0,MAA,12
-18249927,330339,Haunted Mansion Holiday,New Orleans Square,,,,12
+18249927,330339,Haunted Mansion Holiday,New Orleans Square,,9.0,MAA,12
 353447,336894,The Bakery Tour,Pacific Wharf,,9.0,,13
 16514416,336894,Radiator Springs Racers,Cars Land,40.0,6.0,,14
 16514431,336894,Mater's Junkyard Jamboree,Cars Land,32.0,2.0,MIA,14
