@@ -3,6 +3,7 @@ import disneyenv
 
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
 from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.monitor import Monitor
 from stable_baselines3 import PPO, DQN, A2C
 import argparse
 
@@ -12,8 +13,8 @@ parser.add_argument("--algo", type=str,
 args = parser.parse_args()
 
 
-def get_train_env():
-    train_env = gym.make("disneyenv/Disney-v0", train=True)
+def get_train_env(agent_id):
+    train_env = gym.make("disneyenv/Disney-v0", train=True, agent_id=agent_id)
     return train_env
 
 
@@ -22,13 +23,11 @@ def get_eval_env():
     return eval_env
 
 
-train_env = VecMonitor(SubprocVecEnv([lambda: get_train_env()
-                                      for i in range(32)], start_method="fork"), filename=f"./monitor_logs_{args.algo}/train", info_keywords=("current_date",))
-train_env.seed(42)
+train_env = VecMonitor(SubprocVecEnv([lambda i=i: get_train_env(i)
+                                      for i in range(32)], start_method="fork"), filename=f"./monitor_logs_{args.algo}/train", info_keywords=("current_date", "agent_id"))
 
-eval_env = VecMonitor(SubprocVecEnv([lambda: get_eval_env()
-                                     for i in range(32)], start_method="fork"), filename=f"./monitor_logs_{args.algo}/eval", info_keywords=("current_date",))
-eval_env.seed(42)
+eval_env = Monitor(get_eval_env(
+), filename=f"./monitor_logs_{args.algo}/eval", info_keywords=("current_date",))
 
 if args.algo == "ppo":
     model = PPO("MultiInputPolicy", train_env, verbose=1, device="cpu")
@@ -36,7 +35,6 @@ elif args.algo == "dqn":
     model = DQN("MultiInputPolicy", train_env, verbose=1, device="cpu")
 elif args.algo == "a2c":
     model = A2C("MultiInputPolicy", train_env, verbose=1, device="cpu")
-
 
 eval_callback = EvalCallback(eval_env, best_model_save_path=f"./eval_results_{args.algo}/",
                              log_path=f"./eval_results_{args.algo}/", eval_freq=5000, n_eval_episodes=15)

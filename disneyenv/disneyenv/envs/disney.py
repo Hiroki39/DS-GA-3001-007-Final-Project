@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 
 
 class DisneyEnv(gym.Env):
-    def __init__(self, train, eval_days=15):
+    def __init__(self, train, eval_days=15, agent_id=0):
 
         # Dataframe for extracting data
         self.waitTime = pd.read_csv(
@@ -34,6 +34,9 @@ class DisneyEnv(gym.Env):
             "disneyenv/disneyenv/envs/data/rideDuration.csv")
         self.rides = self.ridesinfo["id"].unique()
         self.train = train
+
+        np.random.seed(42 + agent_id)
+        self.agent_id = agent_id
 
         if train:
             self.avalible_dates = np.sort(
@@ -267,7 +270,7 @@ class DisneyEnv(gym.Env):
         # get next observation
         self.observation = self.__get_observation()
 
-        info = {"current_date": self.current_date}
+        info = {"current_date": self.current_date, "agent_id": self.agent_id}
 
         # the visit is over if the time is after 10:00 pm
         terminated = self.current_time > datetime(
