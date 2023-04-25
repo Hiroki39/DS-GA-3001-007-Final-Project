@@ -260,6 +260,10 @@ class DisneyEnv(gym.Env):
                 self.current_time += timedelta(
                     minutes=wait_duration + ride_duration)
 
+            else:
+                # if the ride is not operating, apply a penalty
+                reward -= 5
+
             # apply small penalty for walking
             reward -= 0.2 * travel_duration
 

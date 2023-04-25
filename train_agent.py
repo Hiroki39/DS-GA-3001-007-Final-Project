@@ -24,10 +24,10 @@ def get_eval_env():
 
 
 train_env = VecMonitor(SubprocVecEnv([lambda i=i: get_train_env(i)
-                                      for i in range(32)], start_method="fork"), filename=f"./monitor_logs_{args.algo}/train", info_keywords=("current_date", "agent_id"))
+                                      for i in range(32)], start_method="fork"), filename=f"./monitor_logs/{args.algo}/train", info_keywords=("current_date", "agent_id"))
 
 eval_env = Monitor(get_eval_env(
-), filename=f"./monitor_logs_{args.algo}/eval", info_keywords=("current_date",))
+), filename=f"./monitor_logs/{args.algo}/eval", info_keywords=("current_date",))
 
 if args.algo == "ppo":
     model = PPO("MultiInputPolicy", train_env, verbose=1, device="cpu")
@@ -36,7 +36,7 @@ elif args.algo == "dqn":
 elif args.algo == "a2c":
     model = A2C("MultiInputPolicy", train_env, verbose=1, device="cpu")
 
-eval_callback = EvalCallback(eval_env, best_model_save_path=f"./eval_results_{args.algo}/",
-                             log_path=f"./eval_results_{args.algo}/", eval_freq=5000, n_eval_episodes=15)
+eval_callback = EvalCallback(eval_env, best_model_save_path=f"./eval_results/{args.algo}/",
+                             log_path=f"./eval_results/{args.algo}/", eval_freq=5000, n_eval_episodes=15)
 
-model.learn(total_timesteps=1000000, callback=eval_callback)
+model.learn(total_timesteps=10000000, callback=eval_callback)
