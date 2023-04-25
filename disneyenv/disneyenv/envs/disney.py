@@ -218,11 +218,16 @@ class DisneyEnv(gym.Env):
 
     def step(self, action: int):  # action is the index of the ride. Not the ride ID
 
-        reward = 0
-
         if action == len(self.rides):
             # do nothing and wait for 10 minutes
             self.current_time += timedelta(minutes=10)
+
+            wait_duration = 10
+            ride_duration = 0
+            travel_duration = 0
+
+            ride_reward = 0
+            travel_reward = 0
 
         else:
 
@@ -246,11 +251,14 @@ class DisneyEnv(gym.Env):
 
                     popularity = self.ridesinfo.iloc[action]["popularity"]
 
-                    reward = self.reward_dict[popularity] if type(
+                    ride_reward = self.reward_dict[popularity] if type(
                         popularity) == str else 5
 
                     # update past action record
                     self.past_actions[action] = True
+
+                else:
+                    ride_reward = 0
 
                 # get the wait and ride duration
                 wait_duration = waitTime[0]
@@ -262,19 +270,36 @@ class DisneyEnv(gym.Env):
 
             else:
                 # if the ride is not operating, apply a penalty
-                reward -= 5
+                ride_reward = -5
+
+                wait_duration = 0
+                ride_duration = 0
 
             # apply small penalty for walking
-            reward -= 0.2 * travel_duration
+            travel_reward = -0.2 * travel_duration
 
             # update current location
             self.current_location = action
             self.current_land = self.ridesinfo.iloc[action].landID
 
+        # compute the final reward
+        reward = ride_reward + travel_reward
+
         # get next observation
         self.observation = self.__get_observation()
 
-        info = {"current_date": self.current_date, "agent_id": self.agent_id}
+        info = {
+            "current_date": self.current_date,
+            "current_time": self.current_time,
+            "current_location": self.current_location,
+            "current_land": self.current_land,
+            "wait_duration": wait_duration,
+            "ride_duration": ride_duration,
+            "travel_duration": travel_duration,
+            "ride_reward": ride_reward,
+            "travel_reward": travel_reward,
+            "agent_id": self.agent_id,
+        }
 
         # the visit is over if the time is after 10:00 pm
         terminated = self.current_time > datetime(
