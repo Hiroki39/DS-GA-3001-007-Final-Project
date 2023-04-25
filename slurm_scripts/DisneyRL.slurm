@@ -1,8 +1,9 @@
 #!/bin/bash
 #SBATCH --partition oermannlab
 #SBATCH --nodes 1
+#SBATCH --nodelist a100-8003
 #SBATCH --ntasks-per-node 1
-#SBATCH --cpus-per-task 32
+#SBATCH --cpus-per-task 64
 #SBATCH --mem 200G
 #SBATCH --time 3-00:00:00
 #SBATCH --job-name DisneyRL

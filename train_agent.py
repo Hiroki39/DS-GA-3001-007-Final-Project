@@ -24,7 +24,7 @@ def get_eval_env():
 
 
 train_env = VecMonitor(SubprocVecEnv([lambda i=i: get_train_env(i)
-                                      for i in range(32)], start_method="fork"), filename=f"./monitor_logs/{args.algo}/train", info_keywords=("current_date", "agent_id"))
+                                      for i in range(64)], start_method="fork"), filename=f"./monitor_logs/{args.algo}/train", info_keywords=("current_date", "agent_id"))
 
 eval_env = Monitor(get_eval_env(
 ), filename=f"./monitor_logs/{args.algo}/eval", info_keywords=("current_date",))
