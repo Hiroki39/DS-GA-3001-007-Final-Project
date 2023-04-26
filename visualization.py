@@ -182,3 +182,24 @@ plt.barh(['PPO', 'A2C', 'DQN', 'Random', 'Greedy'], [ppo_avg, a2c_avg, dqn_avg, 
 plt.xlabel("Average Reward")
 plt.title("Average Reward in Test Episode by Agent")
 plt.savefig("images/avg_reward.png", bbox_inches='tight')
+
+plt.clf()
+
+# Produce Hourly Ride Reward Plot
+plt.figure(figsize=(10, 6))
+plt.plot(ppo_df.groupby(pd.to_datetime(ppo_df["current_time"]).dt.hour)[
+         "reward"].sum()[:15] / 15, label="PPO", marker='o')
+plt.plot(a2c_df.groupby(pd.to_datetime(a2c_df["current_time"]).dt.hour)[
+    "reward"].sum()[:15] / 15, label="A2C", marker='v')
+plt.plot(dqn_df.groupby(pd.to_datetime(dqn_df["current_time"]).dt.hour)[
+    "reward"].sum()[:15] / 15, label="DQN", marker='s')
+plt.plot(random_df.groupby(pd.to_datetime(random_df["current_time"]).dt.hour)[
+    "reward"].sum()[:15] / 15, label="Random", marker='x', linestyle='--')
+plt.plot(greedy_df.groupby(pd.to_datetime(greedy_df["current_time"]).dt.hour)[
+    "reward"].sum()[:15] / 15, label="Greedy", marker='+', linestyle='--')
+plt.xticks(rotation=45)
+plt.xlabel("Hour")
+plt.ylabel("Average Reward")
+plt.legend()
+plt.title("Average Reward by Hour in Testing Episodes")
+plt.savefig("images/hourly_reward.png", bbox_inches='tight')
