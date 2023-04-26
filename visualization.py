@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
 
-
+# load and process data
 ppo_data = np.load('eval_results/ppo/evaluations.npz')
 a2c_data = np.load('eval_results/a2c/evaluations.npz')
 dqn_data = np.load('eval_results/dqn/evaluations.npz')
@@ -25,20 +25,56 @@ dqn_df["reward"] = dqn_df['travel_reward'] + dqn_df['ride_reward']
 random_df["reward"] = random_df['travel_reward'] + random_df['ride_reward']
 greedy_df["reward"] = greedy_df['travel_reward'] + greedy_df['ride_reward']
 
+ppo_avg = ppo_df.groupby('current_date')['reward'].sum().mean()
+a2c_avg = a2c_df.groupby('current_date')['reward'].sum().mean()
+dqn_avg = dqn_df.groupby('current_date')['reward'].sum().mean()
 random_avg = random_df.groupby('current_date')['reward'].sum().mean()
 greedy_avg = greedy_df.groupby('current_date')['reward'].sum().mean()
 
+ppo_df["total_duration"] = ppo_df['travel_duration'] + \
+    ppo_df['ride_duration'] + ppo_df['wait_duration']
+a2c_df["total_duration"] = a2c_df['travel_duration'] + \
+    a2c_df['ride_duration'] + a2c_df['wait_duration']
+dqn_df["total_duration"] = dqn_df['travel_duration'] + \
+    dqn_df['ride_duration'] + dqn_df['wait_duration']
+random_df["total_duration"] = random_df['travel_duration'] + \
+    random_df['ride_duration'] + random_df['wait_duration']
+greedy_df["total_duration"] = greedy_df['travel_duration'] + \
+    greedy_df['ride_duration'] + greedy_df['wait_duration']
+
+ppo_df["valid_ride_duration"] = (
+    ppo_df['ride_reward'] > 0) * ppo_df['ride_duration']
+ppo_df["invalid_ride_duration"] = ppo_df['ride_duration'] - \
+    ppo_df["valid_ride_duration"]
+a2c_df["valid_ride_duration"] = (
+    a2c_df['ride_reward'] > 0) * a2c_df['ride_duration']
+a2c_df["invalid_ride_duration"] = a2c_df['ride_duration'] - \
+    a2c_df["valid_ride_duration"]
+dqn_df["valid_ride_duration"] = (
+    dqn_df['ride_reward'] > 0) * dqn_df['ride_duration']
+dqn_df["invalid_ride_duration"] = dqn_df['ride_duration'] - \
+    dqn_df["valid_ride_duration"]
+random_df["valid_ride_duration"] = (
+    random_df['ride_reward'] > 0) * random_df['ride_duration']
+random_df["invalid_ride_duration"] = random_df['ride_duration'] - \
+    random_df["valid_ride_duration"]
+greedy_df["valid_ride_duration"] = (
+    greedy_df['ride_reward'] > 0) * greedy_df['ride_duration']
+greedy_df["invalid_ride_duration"] = greedy_df['ride_duration'] - \
+    greedy_df["valid_ride_duration"]
+
+# set style
 sns.set_style("whitegrid")
+plt.figure(figsize=(10, 6))
 
 # Produce Training Reward Progress Plot
-
 plt.plot(ppo_train_df["r"], label="PPO", alpha=0.8)
 plt.plot(a2c_train_df["r"], label="A2C", alpha=0.8)
 plt.legend()
 plt.xlabel("Training Episode")
 plt.ylabel("Episode Reward")
 plt.title("Training Reward Over Time")
-plt.save("images/train_reward_progress.png")
+plt.savefig("images/train_reward_progress.png", bbox_inches='tight')
 
 plt.clf()
 
@@ -59,106 +95,90 @@ plt.xlabel("Timestep")
 plt.ylabel("Average Reward")
 plt.legend()
 plt.title("Average Evaluation Reward")
-plt.save("images/eval_reward_progress.png")
+plt.savefig("images/eval_reward_progress.png", bbox_inches='tight')
 
 plt.clf()
 
-df.groupby('current_date')['reward'].sum()
+# Produce Valid Ride Percentage Plot
+plt.plot(ppo_df.groupby('current_date').apply(lambda x: x['valid_ride_duration'].sum(
+) / x['total_duration'].sum()), label="PPO", marker='o')
+plt.plot(a2c_df.groupby('current_date').apply(lambda x: x['valid_ride_duration'].sum(
+) / x['total_duration'].sum()), label="A2C", marker='v')
+plt.plot(dqn_df.groupby('current_date').apply(lambda x: x['valid_ride_duration'].sum(
+) / x['total_duration'].sum()), label="DQN", marker='s')
+plt.plot(random_df.groupby('current_date').apply(lambda x: x['valid_ride_duration'].sum(
+) / x['total_duration'].sum()), label="Random", marker='x', linestyle='--')
+plt.plot(greedy_df.groupby('current_date').apply(lambda x: x['valid_ride_duration'].sum(
+) / x['total_duration'].sum()), label="Greedy", marker='+', linestyle='--')
+plt.xticks(rotation=45)
 
+plt.xlabel("Date")
+plt.ylabel("% Valid Ride Duration")
+plt.legend()
 
-def get_durations(df, bar_chart=False):
-    result = np.zeros([4, 15])
-    df["valid_ride_duration"] = df["ride_duration"] * (df.ride_reward > 0)
-    df = df[["current_date", "wait_duration", "ride_duration", "travel_duration",
-             "valid_ride_duration"]].groupby("current_date").agg("sum")
+plt.title("Percentage of Valid Ride Duration in Testing Episodes")
+plt.savefig("images/valid_ride_percentage.png", bbox_inches='tight')
 
-    if not bar_chart:
-        result[0] = df.valid_ride_duration.to_numpy()
-        result[1] = df.wait_duration.to_numpy()
-        result[2] = df.travel_duration.to_numpy()
-        result[3] = df.ride_duration + result[1] + result[2]
+plt.clf()
 
-    else:
-        result = np.zeros(3)
-        sum_time = df.ride_duration.to_numpy() + df.wait_duration.to_numpy() + \
-            df.travel_duration.to_numpy()
-        result[0] = (df.ride_duration.to_numpy()/sum_time).sum()
-        result[1] = (df.wait_duration.to_numpy()/sum_time).sum()
-        result[2] = (df.travel_duration.to_numpy()/sum_time).sum()
+# Produce Duration Brewkdown Plot
+arr = np.array([
+    ppo_df[['valid_ride_duration', 'invalid_ride_duration',
+            'wait_duration', 'travel_duration']].sum().values,
+    a2c_df[['valid_ride_duration', 'invalid_ride_duration',
+            'wait_duration', 'travel_duration']].sum().values,
+    dqn_df[['valid_ride_duration', 'invalid_ride_duration',
+            'wait_duration', 'travel_duration']].sum().values,
+    random_df[['valid_ride_duration', 'invalid_ride_duration',
+               'wait_duration', 'travel_duration']].sum().values,
+    greedy_df[['valid_ride_duration', 'invalid_ride_duration',
+               'wait_duration', 'travel_duration']].sum().values
+])
 
-    return result
+# normalize by total duration
+arr = arr / arr.sum(axis=1)[:, np.newaxis]
 
+breakdown_df = pd.DataFrame(arr, columns=[
+                            'Valid Ride Duration', 'Invalid Ride Duration', 'Wait Duration', 'Travel Duration'])
+breakdown_df.index = ['PPO', 'A2C', 'DQN', 'Random', 'Greedy']
 
-time_dict = {}
-for i in ["a2c", "dqn", "ppo"]:
-    df = pd.read_csv("./test_logs/" + i + ".csv")
-    time_dict[i] = get_durations(df)
-
+# plot stacked bar chart, no white space between bars
 plt.figure(figsize=(10, 6))
-sns.set_style("whitegrid")
-plt.title("Percentage of valid ride time in testing episodes")
-plt.plot(np.arange(15), time_dict["ppo"][0] /
-         time_dict["ppo"][3], label="ppo", marker="o")
-plt.plot(np.arange(15), time_dict["a2c"][0] /
-         time_dict["a2c"][3], label="a2c", marker="v")
-plt.plot(np.arange(15), time_dict["dqn"][0] /
-         time_dict["dqn"][3], label="dqn", marker="s")
-plt.xlabel("Episode")
-plt.ylabel("Percentage of time")
+breakdown_df.plot.barh(stacked=True, color=[
+                       'mediumblue', 'deepskyblue', 'lightskyblue', 'cyan'], edgecolor='none')
 
+plt.ylabel("Agent")
+plt.xlabel("Percentage of Total Duration")
+plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5))
+plt.title("Breakdown of Total Duration by Agent")
+plt.savefig("images/duration_breakdown.png", bbox_inches='tight')
+
+plt.clf()
+
+# Produce Testing Reward Plot
+plt.figure(figsize=(10, 6))
+plt.plot(ppo_df.groupby('current_date')[
+         "reward"].sum(), label="PPO", marker='o')
+plt.plot(a2c_df.groupby('current_date')[
+         "reward"].sum(), label="A2C", marker='v')
+plt.plot(dqn_df.groupby('current_date')[
+         "reward"].sum(), label="DQN", marker='s')
+plt.plot(random_df.groupby('current_date')[
+         "reward"].sum(), label="Random", marker='x', linestyle='--')
+plt.plot(greedy_df.groupby('current_date')[
+         "reward"].sum(), label="Greedy", marker='+', linestyle='--')
+plt.xticks(rotation=45)
+plt.xlabel("Date")
+plt.ylabel("Total Reward")
 plt.legend()
+plt.title("Agent Reward in Testing Episodes")
+plt.savefig("images/test_reward.png", bbox_inches='tight')
 
-names = ["DQN", "A2C", "PPO"]
-r = [time_dict[key][0] for key in time_dict.keys()]
-w = [time_dict[key][1] for key in time_dict.keys()]
-t = [time_dict[key][2] for key in time_dict.keys()]
+plt.clf()
 
-plt.figure(figsize=(10, 5))
-
-plt.title("Time breakdown for agents in testing episodes")
-plt.barh(names, r, label="ride time (both valid and invalid)", color="mediumblue")
-
-plt.barh(names, w, left=r, label="wait time", color="skyblue")
-
-plt.barh(names, t, left=np.array(w)+np.array(r),
-         label="travel time", color="cyan")
-plt.xlabel("Time")
-plt.legend()
-
-
-def plot_test_reward(arr_reward, agent_name, markermap, linemap):
-    sns.set_style("whitegrid")
-
-    plt.figure(figsize=(7, 9))
-
-    plt.title("Reward for agents in test episodes")
-    for i, __ in enumerate(arr_reward):
-        plt.plot(np.arange(len(arr_reward[i])), arr_reward[i],
-                 label=agent_name[i], marker=markermap[i], linestyle=linemap[i])
-        # plt.axhline(y = np.mean(arr_reward[i]),ls = "dashed")
-
-    plt.xlabel("Days")
-    plt.ylabel("Reward")
-    plt.ylim([-100, 600])
-    plt.legend()
-    plt.show()
-
-
-agent_list = []
-name = ["ppo", "a2c", "dqn", "random", "greedy"]
-
-# cmap = ["red","green","pink","orange","blue"]
-markermap = ["o", "v", "s", "x", "x"]
-linemap = ["-", "-", "-", ":", ":"]
-
-for i in name:
-    df = pd.read_csv("./test_logs/"+i+".csv")
-    df["step_reward"] = df["ride_reward"]-df["travel_reward"]
-    agent_list += [df[["current_date", "step_reward"]
-                      ].groupby("current_date").agg("sum").step_reward.to_numpy()]
-
-plot_test_reward(agent_list, name, markermap, linemap)
-plt.title("Mean reward in test episode")
-plt.xlabel("Mean Reward")
-plt.barh(name, np.mean(agent_list, axis=1), color=[
-         'purple', 'tab:red', 'green', 'tab:orange', 'tab:blue'][::-1])
+# Produce Average Reward Plot
+plt.barh(['PPO', 'A2C', 'DQN', 'Random', 'Greedy'], [ppo_avg, a2c_avg, dqn_avg, random_avg,
+         greedy_avg], color=['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple'])
+plt.xlabel("Average Reward")
+plt.title("Average Reward in Test Episode by Agent")
+plt.savefig("images/avg_reward.png", bbox_inches='tight')
