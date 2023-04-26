@@ -21,8 +21,11 @@ class GreedyAgent:
 
     def __init__(self, env):
         self.action_space = env.action_space
+        self.adjacency_matrix = env.adjacency_matrix
+        self.landID_arr = env.ridesinfo.landID.to_numpy()
         self.reward_arr = env.ridesinfo.popularity.apply(
-            lambda x:  5 if type(x) != str else env.reward_dict[x]).to_numpy()
+            lambda x: 5 if type(x) != str else env.reward_dict[x]).to_numpy()
+        self.ride_duration_arr = env.ridesinfo.duration_min.to_numpy()
 
     def predict(self, obs, **kwargs):
         indicies = np.where(
@@ -30,10 +33,16 @@ class GreedyAgent:
         if len(indicies) == 0:
             return self.action_space.n - 1
 
-        wait_arr = obs["waitTime"][indicies]
+        land_travel_times = env.adjacency_matrix[obs["currentLand"], :]
+        travel_times_arr = land_travel_times[self.landID_arr]
+
+        travel_times_arr[travel_times_arr == 0] = 1
+
+        time_arr = obs["waitTime"][indicies] + \
+            self.ride_duration_arr[indicies] + travel_times_arr[indicies]
         reward_arr = self.reward_arr[indicies]
-        tmp = np.argmax([reward / wait if wait != 0 else reward for wait,
-                        reward in zip(wait_arr, reward_arr)])
+
+        tmp = np.argmax(reward_arr / time_arr)
 
         action = indicies[tmp]
 
