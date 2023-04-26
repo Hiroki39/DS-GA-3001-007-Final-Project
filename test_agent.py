@@ -12,7 +12,7 @@ class RandomAgent:
     def __init__(self, env):
         self.action_space = env.action_space
 
-    def predict(self, obs, **kwargs):
+    def predict(self, obs, deterministic=True):
         action = self.action_space.sample()
         return action, None
 
@@ -27,11 +27,11 @@ class GreedyAgent:
             lambda x: 5 if type(x) != str else env.reward_dict[x]).to_numpy()
         self.ride_duration_arr = env.ridesinfo.duration_min.to_numpy()
 
-    def predict(self, obs, **kwargs):
+    def predict(self, obs, deterministic=True):
         indicies = np.where(
             (obs["operationStatus"] + ~obs["pastActions"]) == 2)[0]
         if len(indicies) == 0:
-            return self.action_space.n - 1
+            return self.action_space.n - 1, None
 
         land_travel_times = env.adjacency_matrix[obs["currentLand"], :]
         travel_times_arr = land_travel_times[self.landID_arr]
