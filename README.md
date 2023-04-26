@@ -6,6 +6,12 @@ The goal of this project is to train an RL agent to effectively plan the visit p
 
 ## Usage
 
+Before running the code, please run the following command to register the environment to gym:
+
+```bash
+pip install -e disneyenv
+```
+
 ### Training
 
 To train the agent, run the following command:
@@ -35,3 +41,13 @@ python visualization.py
 ```
 
 The plots will be saved in `images/` folder.
+
+### Walking Time Matrix Generation
+
+If you need to re-generate the walking time matrix, run the following command:
+
+```bash
+python generate_walking.py
+```
+
+The matrix will be saved in `/disneyenv/disneyenv/envs/data/` folder in the form of `walking_time.npy`. Be sure to create a `.env` file in the root directory of the project and set the `GOOGLE_MAP_API` variable to your own Google Map API key.
