@@ -14,7 +14,7 @@ class RandomAgent:
 
     def predict(self, obs, **kwargs):
         action = self.action_space.sample()
-        return action, None
+        return action, 0
 
 
 class GreedyAgent:
@@ -46,7 +46,7 @@ class GreedyAgent:
 
         action = indicies[tmp]
 
-        return action, None
+        return action, 0
 
 
 parser = argparse.ArgumentParser()
