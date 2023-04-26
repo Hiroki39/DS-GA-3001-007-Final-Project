@@ -72,7 +72,7 @@ elif algo == "random":
 with open(f'test_logs/{algo}.csv', 'w') as f:
 
     fieldnames = ['current_date', 'current_time', 'current_location', 'current_land',
-                  'wait_duration', 'ride_duration', 'travel_duration', 'ride_duration', 'ride_reward', 'travel_reward', 'agent_id']
+                  'wait_duration', 'ride_duration', 'travel_duration', 'ride_reward', 'travel_reward', 'agent_id']
     writer = csv.DictWriter(f, fieldnames=fieldnames)
     writer.writeheader()
 
