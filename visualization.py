@@ -88,8 +88,8 @@ plt.plot(a2c_data["timesteps"], a2c_data["results"].mean(
 plt.xticks(ppo_data["timesteps"], labels=ppo_data["timesteps"], rotation=45)
 
 # draw random and greedy baselines
-plt.axhline(y=random_avg, color='r', linestyle='--', label="Random Baseline")
-plt.axhline(y=greedy_avg, color='g', linestyle='--', label="Greedy Baseline")
+plt.axhline(y=random_avg, color='r', linestyle=':', label="Random Baseline")
+plt.axhline(y=greedy_avg, color='g', linestyle=':', label="Greedy Baseline")
 
 plt.xlabel("Timestep")
 plt.ylabel("Average Reward")
@@ -107,9 +107,9 @@ plt.plot(a2c_df.groupby('current_date').apply(lambda x: x['valid_ride_duration']
 plt.plot(dqn_df.groupby('current_date').apply(lambda x: x['valid_ride_duration'].sum(
 ) / x['total_duration'].sum()), label="DQN", marker='s')
 plt.plot(random_df.groupby('current_date').apply(lambda x: x['valid_ride_duration'].sum(
-) / x['total_duration'].sum()), label="Random", marker='x', linestyle='--')
+) / x['total_duration'].sum()), label="Random", marker='x', linestyle=':')
 plt.plot(greedy_df.groupby('current_date').apply(lambda x: x['valid_ride_duration'].sum(
-) / x['total_duration'].sum()), label="Greedy", marker='+', linestyle='--')
+) / x['total_duration'].sum()), label="Greedy", marker='+', linestyle=':')
 plt.xticks(rotation=45)
 
 plt.xlabel("Date")
@@ -164,9 +164,9 @@ plt.plot(a2c_df.groupby('current_date')[
 plt.plot(dqn_df.groupby('current_date')[
          "reward"].sum(), label="DQN", marker='s')
 plt.plot(random_df.groupby('current_date')[
-         "reward"].sum(), label="Random", marker='x', linestyle='--')
+         "reward"].sum(), label="Random", marker='x', linestyle=':')
 plt.plot(greedy_df.groupby('current_date')[
-         "reward"].sum(), label="Greedy", marker='+', linestyle='--')
+         "reward"].sum(), label="Greedy", marker='+', linestyle=':')
 plt.xticks(rotation=45)
 plt.xlabel("Date")
 plt.ylabel("Total Reward")
@@ -196,11 +196,11 @@ plt.plot(a2c_df.groupby(pd.to_datetime(a2c_df["current_time"]).dt.hour)[
 plt.plot(dqn_df.groupby(pd.to_datetime(dqn_df["current_time"]).dt.hour)[
     "reward"].sum()[:15] / 15, label="DQN", marker='s')
 plt.plot(random_df.groupby(pd.to_datetime(random_df["current_time"]).dt.hour)[
-    "reward"].sum()[:15] / 15, label="Random", marker='x', linestyle='--')
+    "reward"].sum()[:15] / 15, label="Random", marker='x', linestyle=':')
 '''
 
 plt.plot(greedy_df.groupby(pd.to_datetime(greedy_df["current_time"]).dt.hour)[
-    "reward"].sum()[:15] / 15, label="Greedy", marker='+', linestyle='--', c= "tab:purple")
+    "reward"].sum()[:15] / 15, label="Greedy", marker='+', linestyle=':', c="tab:purple")
 plt.xticks(rotation=45)
 plt.xlabel("Hour")
 plt.ylabel("Average Reward")
@@ -208,39 +208,39 @@ plt.legend()
 plt.title("Average Reward by Hour in Testing Episodes")
 plt.savefig("images/hourly_reward.png", bbox_inches='tight')
 
+plt.clf()
 
-def get_hour_vs_reward(df):
-    df = df.assign(hour = [i.hour for i in pd.to_datetime(df.current_time)])
-    df = df.assign(step_reward = df.ride_reward + df.travel_reward)
-    tmp = df[["current_date","step_reward","hour"]].groupby(["hour"]).agg("mean")
-    return tmp
+# Produce Hourly Ride Step Reward and Wait Time Plot
+fig = plt.figure(figsize=(10, 8))
 
-
-
-fig, (ax1, ax2) = plt.subplots(2, 1,gridspec_kw={'height_ratios': [2,1]})
-fig.set_figheight(7)
-fig.suptitle("Average reward per step by hours")
-ax1.set_title("Agents")
-l1, = ax1.plot(get_hour_vs_reward(ppo_df).index,get_hour_vs_reward(ppo_df).step_reward,\
-         label = "PPO",c="tab:blue",marker = "o")
-l2, = ax1.plot(get_hour_vs_reward(a2c_df).index,get_hour_vs_reward(a2c_df).step_reward,\
-         label = "A2C",c="tab:orange",marker = "v")
-l3, = ax1.plot(get_hour_vs_reward(greedy_df).index,get_hour_vs_reward(greedy_df).step_reward,\
-         label = "Greedy",c="tab:purple",linestyle=":",marker = "x")
-
-ax1.legend([l1,l2,l3],["PPO","A2C","Greedy"])
-
-waittime = pd.read_csv(".\disneyenv\disneyenv\envs\data\disneyRideTimes.csv")
+waittime = pd.read_csv("./disneyenv/disneyenv/envs/data/disneyRideTimes.csv")
 rides = pd.read_csv("./disneyenv/disneyenv/envs/data/rideDuration.csv")
-waittime = pd.merge(rides[["id","popularity"]],waittime,left_on="id",right_on="rideID")
-waittime = waittime[(waittime.popularity == "MAA") & (waittime.status != "Closed")]
-waittime["hour"] = [i.hour for i in pd.to_datetime(waittime.dateTime)]
-waittime = waittime.fillna(0)
-tmp = waittime.groupby("hour").agg("mean")
-ax2.set_title("Average wait time for major attractions by hours")
-ax2.plot(tmp.index,tmp.waitMins,c = "black",marker = "+")
-ax2.set_xlim((7,24))
-ax2.set_xlabel("Hour")
+waittime = pd.merge(rides[["id", "popularity"]],
+                    waittime, left_on="id", right_on="rideID")
+waittime = waittime[(waittime.popularity == "MAA") &
+                    (waittime.status == "Operating")]
+plt.bar(x=np.arange(8, 23), height=waittime.groupby(pd.to_datetime(waittime.dateTime).dt.hour)
+        ["waitMins"].mean().loc[8:22], alpha=0.3, color="tab:red", label="Major Attraction Average Wait Time")
+plt.xlabel("Hour")
+plt.ylabel("Major Atttraction Average Wait Time")
+plt.legend(loc='upper left')
+
+# create twin axis for rewards
+ax2 = plt.twinx()
+
+ax2.plot(ppo_df.groupby(pd.to_datetime(ppo_df["current_time"]).dt.hour)[
+         "reward"].mean()[:15],
+         label="PPO", marker="o")
+ax2.plot(a2c_df.groupby(pd.to_datetime(a2c_df["current_time"]).dt.hour)[
+         "reward"].mean()[:15],
+         label="A2C", marker="v")
+ax2.plot(greedy_df.groupby(pd.to_datetime(greedy_df["current_time"]).dt.hour)["reward"].mean()[:15],
+         label="Greedy", c="tab:purple", linestyle=":", marker="+")
+
+ax2.set_ylabel("Average Step Reward")
+ax2.legend()
+
+plt.title(
+    "Average Step Reward and Major Attraction Wait Time by Hour in Testing Episodes")
 
 plt.savefig("images/hourly_step_reward.png", bbox_inches='tight')
-
