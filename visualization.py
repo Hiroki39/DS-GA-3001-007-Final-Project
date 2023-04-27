@@ -186,20 +186,61 @@ plt.savefig("images/avg_reward.png", bbox_inches='tight')
 plt.clf()
 
 # Produce Hourly Ride Reward Plot
+
 plt.figure(figsize=(10, 6))
 plt.plot(ppo_df.groupby(pd.to_datetime(ppo_df["current_time"]).dt.hour)[
          "reward"].sum()[:15] / 15, label="PPO", marker='o')
 plt.plot(a2c_df.groupby(pd.to_datetime(a2c_df["current_time"]).dt.hour)[
     "reward"].sum()[:15] / 15, label="A2C", marker='v')
+'''
 plt.plot(dqn_df.groupby(pd.to_datetime(dqn_df["current_time"]).dt.hour)[
     "reward"].sum()[:15] / 15, label="DQN", marker='s')
 plt.plot(random_df.groupby(pd.to_datetime(random_df["current_time"]).dt.hour)[
     "reward"].sum()[:15] / 15, label="Random", marker='x', linestyle='--')
+'''
+
 plt.plot(greedy_df.groupby(pd.to_datetime(greedy_df["current_time"]).dt.hour)[
-    "reward"].sum()[:15] / 15, label="Greedy", marker='+', linestyle='--')
+    "reward"].sum()[:15] / 15, label="Greedy", marker='+', linestyle='--', c= "tab:purple")
 plt.xticks(rotation=45)
 plt.xlabel("Hour")
 plt.ylabel("Average Reward")
 plt.legend()
 plt.title("Average Reward by Hour in Testing Episodes")
 plt.savefig("images/hourly_reward.png", bbox_inches='tight')
+
+
+def get_hour_vs_reward(df):
+    df = df.assign(hour = [i.hour for i in pd.to_datetime(df.current_time)])
+    df = df.assign(step_reward = df.ride_reward + df.travel_reward)
+    tmp = df[["current_date","step_reward","hour"]].groupby(["hour"]).agg("mean")
+    return tmp
+
+
+
+fig, (ax1, ax2) = plt.subplots(2, 1,gridspec_kw={'height_ratios': [2,1]})
+fig.set_figheight(7)
+fig.suptitle("Average reward per step by hours")
+ax1.set_title("Agents")
+l1, = ax1.plot(get_hour_vs_reward(ppo_df).index,get_hour_vs_reward(ppo_df).step_reward,\
+         label = "PPO",c="tab:blue",marker = "o")
+l2, = ax1.plot(get_hour_vs_reward(a2c_df).index,get_hour_vs_reward(a2c_df).step_reward,\
+         label = "A2C",c="tab:orange",marker = "v")
+l3, = ax1.plot(get_hour_vs_reward(greedy_df).index,get_hour_vs_reward(greedy_df).step_reward,\
+         label = "Greedy",c="tab:purple",linestyle=":",marker = "x")
+
+ax1.legend([l1,l2,l3],["PPO","A2C","Greedy"])
+
+waittime = pd.read_csv(".\disneyenv\disneyenv\envs\data\disneyRideTimes.csv")
+rides = pd.read_csv("./disneyenv/disneyenv/envs/data/rideDuration.csv")
+waittime = pd.merge(rides[["id","popularity"]],waittime,left_on="id",right_on="rideID")
+waittime = waittime[(waittime.popularity == "MAA") & (waittime.status != "Closed")]
+waittime["hour"] = [i.hour for i in pd.to_datetime(waittime.dateTime)]
+waittime = waittime.fillna(0)
+tmp = waittime.groupby("hour").agg("mean")
+ax2.set_title("Average wait time for major attractions by hours")
+ax2.plot(tmp.index,tmp.waitMins,c = "black",marker = "+")
+ax2.set_xlim((7,24))
+ax2.set_xlabel("Hour")
+
+plt.savefig("images/hourly_step_reward.png", bbox_inches='tight')
+
