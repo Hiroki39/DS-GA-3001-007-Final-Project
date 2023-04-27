@@ -187,7 +187,7 @@ plt.clf()
 
 # Produce Hourly Ride Reward Plot
 
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(12, 4))
 plt.plot(ppo_df.groupby(pd.to_datetime(ppo_df["current_time"]).dt.hour)[
          "reward"].sum()[:15] / 15, label="PPO", marker='o')
 plt.plot(a2c_df.groupby(pd.to_datetime(a2c_df["current_time"]).dt.hour)[
