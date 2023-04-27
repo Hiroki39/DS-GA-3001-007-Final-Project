@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from datetime import datetime
 
 # load and process data
 ppo_data = np.load('eval_results/ppo/evaluations.npz')
